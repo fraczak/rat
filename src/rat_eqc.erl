@@ -7,7 +7,7 @@ non_zero_nat() ->
     ?SUCHTHAT(N, nat(), N > 0).
 
 rat() ->
-    ?SUCHTHAT({L,M}, {int(),nat()}, M > 0).
+    ?SUCHTHAT({L,M}, {int(),non_zero_nat()}, rat:is_rational({L,M})).
 
 gcd_1() ->
     ?FORALL( X, non_zero_nat(),
@@ -36,6 +36,10 @@ rat_1() ->
              begin
                  rat:is_rational(rat:rat(X,Y))
              end).
+rat_2() ->
+    ?FORALL( X, int(),
+             rat:to_int(rat:rat(X)) =:= X).
+
 minus_1() ->
     ?FORALL( R, rat(),
              begin
@@ -94,16 +98,39 @@ ge_2() ->
              ?IMPLIES( rat:ge(X,Y) ,
                        ?IMPLIES( rat:ge(Y,Z),
                                  rat:ge(X,Z) ))).
+is_rational_1() ->
+    ?FORALL({L,M} , rat(),
+            ?IMPLIES( L > 0,
+                      rat:is_rational({L,M}) =:= (rat:gcd(L,M) =:= 1)
+                    )).
+round_1() ->
+    ?FORALL({X,D} , {rat(), non_zero_nat()},
+            begin
+                Prec = rat:rat(1,D),
+                Round = rat:round(X,Prec),
+                rat:ge(X,Round)
+                    and
+                    rat:ge(rat:add(X,Prec),X)
+            end).
+round_2() ->
+    ?FORALL(R={_,M} , rat(),
+            rat:round(R,{1,M}) =:= R).
 
 eqc_test_() ->
     [ { atom_to_list(F),
-        {timeout, 20, ?_assert(eqc:quickcheck(?MODULE:F()))}} 
+        {timeout, 20,
+         ?_assert(
+            eqc:quickcheck(
+              eqc:numtests(2000,
+                           ?MODULE:F())))}} 
       || F <- [
                gcd_1,gcd_2,gcd_3,lcm_1,
-               rat_1,
+               rat_1,rat_2,
                minus_1,minus_2,
                add_1,add_2,
                mult_1,mult_2,mult_3,
                add_mult_1,
-               ge_1, ge_2
+               ge_1, ge_2,
+               is_rational_1,
+               round_1, round_2
               ]].

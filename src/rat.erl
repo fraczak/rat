@@ -24,7 +24,9 @@
     divide/2,
     ge/2,
     is_rational/1,
-    to_float/1
+    to_float/1,
+    to_int/1,
+    round/2
    ]).
 
 gcd(X,Y) when (X < Y) ->
@@ -49,7 +51,9 @@ rat({L,M}) when L > 0 ->
   {L div G, M div G};
 rat({L,M}) ->
   {Lr,Mr} = rat({-L,M}),
-  {-Lr,Mr}.
+  {-Lr,Mr};
+rat(I) when is_integer(I) ->
+  rat(I,1).
 
 add({L1,M1},{L2,M2}) ->
   G = gcd(M1,M2),
@@ -58,18 +62,25 @@ add({L1,M1},{L2,M2}) ->
   rat({L1 * K2 + L2 * K1,lcm(M1,M2)}).
 
 minus({L,M}) ->
-  {-L,M}.
+    {-L,M};
+minus(X) ->
+    minus(rat(X)).
 
 minus(X,Y) ->
   add(X, minus(Y)).
 
 mult({L1,M1},{L2,M2}) ->
-  rat({L1*L2,M1*M2}).
+    rat({L1*L2,M1*M2});
+mult(X,Y) ->
+    mult(rat(X),rat(Y)).
 
 inverse({L,M}) when L > 0 ->
   {M,L};
 inverse({L,M}) when L < 0 ->
-  {-M,-L}.
+    {-M,-L};
+inverse(X) ->
+    inverse(rat(X)).
+
 
 divide(X,Y) ->
   mult(X,inverse(Y)).
@@ -90,3 +101,15 @@ is_rational(_) ->
 to_float({L,M}) ->
   L / M.
 
+to_int({L,M}) ->
+  L div M.
+
+%% round to Prec
+round(X = {L,_M},Prec) when L >= 0 ->
+    mult(to_int(divide(X,Prec)),Prec);
+round(X,Prec) ->
+    E = round(minus(X),Prec),
+    case minus(E) of
+        X -> X;
+        R -> minus(R,Prec)
+    end.
