@@ -9,6 +9,9 @@ non_zero_nat() ->
 rat() ->
     ?SUCHTHAT({L,M}, {int(),non_zero_nat()}, rat:is_rational({L,M})).
 
+non_zero_rat() ->
+    ?SUCHTHAT(R, rat(), R /= {0,1}).
+
 gcd_1() ->
     ?FORALL( X, non_zero_nat(),
              rat:gcd(X,X+1) =:= 1).
@@ -48,7 +51,7 @@ minus_1() ->
 minus_2() ->
     ?FORALL( R, rat(),
              begin
-                 rat:minus(R,R) =:= rat:rat(0,1)
+                 rat:minus(R,R) =:= rat:rat(0)
              end).
 
 add_1() ->
@@ -103,6 +106,20 @@ is_rational_1() ->
             ?IMPLIES( L > 0,
                       rat:is_rational({L,M}) =:= (rat:gcd(L,M) =:= 1)
                     )).
+
+inverse_1() ->
+    ?FORALL(X, non_zero_rat(),
+            rat:inverse(rat:inverse(X)) =:= X).
+inverse_2() ->
+    ?FORALL(X, non_zero_rat(),
+            case rat:mult(X,rat:inverse(X)) of
+                {S,1} ->
+                    S*S =:= 1;
+                _ ->
+                    false
+            end
+           ).
+
 round_1() ->
     ?FORALL({X,D} , {rat(), non_zero_nat()},
             begin
@@ -128,6 +145,7 @@ eqc_test_() ->
                rat_1,rat_2,
                minus_1,minus_2,
                add_1,add_2,
+               inverse_1, inverse_2,
                mult_1,mult_2,mult_3,
                add_mult_1,
                ge_1, ge_2,
