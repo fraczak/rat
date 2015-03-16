@@ -1,0 +1,14 @@
+{application, rat,
+ [
+  {description, "An Erlang RATIONAL NUMBERS library (supporting +,-,*,/)"},
+  {vsn, "1"},
+  {modules, [
+             rat
+            ]},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {env, []}
+ ]}.
