@@ -12,7 +12,9 @@
 %% A rational number is a pair {L,M}, where L is an integer, and
 %% M is a non zero natural number (positive integer).
 
--export_type([rat/0,pos_rat/0,non_zero_rat/0]).
+%% support for float() is weak/not good. DON'T USE IT!
+
+-export_type([as_rat/0,rat/0,pos_rat/0,non_zero_rat/0]).
 %% API
 -export(
    [
@@ -27,15 +29,12 @@
     is_rational/1,
     to_float/1,
     to_int/1,
-    round/2
+    floor/1, floor/2
    ]).
--type rat() :: {integer(), pos_integer()}
-             | integer().
--type pos_rat() :: {pos_integer(),pos_integer()}
-                 | pos_integer().
--type non_zero_rat() :: {neg_integer()|pos_integer(),pos_integer()}
-                      | neg_integer()
-                      | pos_integer().
+-type rat() :: {integer(), pos_integer()}.
+-type pos_rat() :: {pos_integer(),pos_integer()}.
+-type non_zero_rat() :: {neg_integer()|pos_integer(),pos_integer()}.
+-type as_rat() :: rat() | integer() | float().
 
 %% Greatest common divider of X and Y
 -spec gcd(X::pos_integer(),Y::pos_integer()) -> pos_integer().
@@ -58,20 +57,24 @@ lcm(X,Y) ->
 rat(X,Y) ->
   rat({X,Y}).
 
-%% normalize a rational number
--spec rat(I::rat()) -> rat().
-rat({0,_M}) ->
+%% normalizes [to] a rational number
+-spec rat(X::as_rat()) -> rat().
+rat({0,_M}) when _M =/= 0 ->
   {0,1};
-rat({L,M}) when L > 0 ->
+rat({L,M}) when L > 0, M =/= 0 ->
   G = gcd(L,M),
   {L div G, M div G};
-rat({L,M}) ->
+rat({L,M}) when L < 0, M =/= 0 ->
   {Lr,Mr} = rat({-L,M}),
   {-Lr,Mr};
 rat(I) when is_integer(I) ->
-  rat(I,1).
+    rat(I,1);
+%% TODO: extract exact value from the inner float() representation!!!
+rat(F) when is_float(F) ->
+    Prec = 1000000000000,
+    rat(erlang:round(F*Prec),Prec).
 
--spec add(X::rat(), Y::rat()) -> rat().
+-spec add(X::as_rat(), Y::as_rat()) -> rat().
 add({L1,M1},{L2,M2}) ->
   G = gcd(M1,M2),
   K1 = M1 div G,
@@ -80,17 +83,17 @@ add({L1,M1},{L2,M2}) ->
 add(X,Y) ->
     add(rat(X),rat(Y)).
 
--spec minus(X::rat()) -> rat().
+-spec minus(X::as_rat()) -> rat().
 minus({L,M}) ->
     {-L,M};
 minus(X) ->
     minus(rat(X)).
 
--spec minus(X::rat(), Y::rat()) -> rat().
+-spec minus(X::as_rat(), Y::as_rat()) -> rat().
 minus(X,Y) ->
   add(X, minus(Y)).
 
--spec mult(X::rat(), Y::rat()) -> rat().
+-spec mult(X::as_rat(), Y::as_rat()) -> rat().
 mult({L1,M1},{L2,M2}) ->
     rat({L1*L2,M1*M2});
 mult(X,Y) ->
@@ -100,15 +103,15 @@ mult(X,Y) ->
 inverse({L,M}) when L > 0 ->
   {M,L};
 inverse({L,M}) when L < 0 ->
-    {-M,-L};
-inverse(X) ->
-    inverse(rat(X)).
+    {-M,-L}.
+%inverse(X) ->
+%    inverse(rat(X)).
 
--spec divide(X::rat(), Y::non_zero_rat()) -> rat().
+-spec divide(X::as_rat(), Y::non_zero_rat()) -> rat().
 divide(X,Y) ->
   mult(X,inverse(Y)).
 
--spec ge(X::rat(), Y::rat()) -> boolean().
+-spec ge(X::as_rat(), Y::as_rat()) -> boolean().
 ge({L1,M1},{L2,M2}) ->
     L1 * M2 >= L2 * M1;
 ge(X,Y) ->
@@ -122,21 +125,30 @@ is_rational(_) ->
 
 -spec to_float(X::rat()) -> float().
 to_float({L,M}) ->
-    L / M;
-to_float(X) ->
-    to_float(rat(X)).
+    L / M.
+%to_float(X) ->
+%    to_float(rat(X)).
 
 -spec to_int(X::rat()) -> integer().
 to_int({L,M}) ->
   L div M.
 
-%% round to Prec
--spec round(X::rat(), Prec::rat()) -> rat().
-round(X = {L,_M},Prec) when L >= 0 ->
+%% floor to `Precision`, eg:
+%   floor({1,3},{1,100})  -> {33,100}, i.e:  0.33
+%   floor({-1,3},{1,100}) -> {-17,50}, i.e: -0.34
+%   floor(2.711, {2,3})   -> {8,3}
+-spec floor(X::as_rat(), Prec::non_zero_rat()) -> rat().
+floor(X = {L,_M},Prec) when L >= 0 ->
     mult(to_int(divide(X,Prec)),Prec);
-round(X,Prec) ->
-    E = round(minus(X),Prec),
+floor(X = {_L,_M} ,Prec) ->
+    E = floor(minus(X),Prec),
     case minus(E) of
         X -> X;
         R -> minus(R,Prec)
-    end.
+    end;
+floor(X,Prec) ->
+    floor(rat(X), Prec).
+
+-spec floor(X::as_rat()) -> rat().
+floor(X) ->
+    floor(X,{1,1}).

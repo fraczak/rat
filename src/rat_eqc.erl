@@ -9,6 +9,9 @@ non_zero_nat() ->
 rat() ->
     ?SUCHTHAT({L,M}, {int(),non_zero_nat()}, rat:is_rational({L,M})).
 
+pos_rat() ->
+    ?SUCHTHAT({L,M}, {non_zero_nat(),non_zero_nat()}, rat:is_rational({L,M})).
+
 non_zero_rat() ->
     ?SUCHTHAT(R, rat(), R /= {0,1}).
 
@@ -120,25 +123,36 @@ inverse_2() ->
             end
            ).
 
-round_1() ->
-    ?FORALL({X,D} , {rat(), non_zero_nat()},
+floor_1() ->
+    ?FORALL({X,Prec} , {rat(), pos_rat()},
             begin
-                Prec = rat:rat(1,D),
-                Round = rat:round(X,Prec),
-                rat:ge(X,Round)
+                Floor = rat:floor(X,Prec),
+                rat:ge(X,Floor)
                     and
                     rat:ge(rat:add(X,Prec),X)
             end).
-round_2() ->
+floor_2() ->
+    ?FORALL({X,Prec} , {real(), pos_rat()},
+            begin
+                Floor = rat:floor(X,Prec),
+                (X >= rat:to_float(Floor))
+                    and
+                    (rat:to_float(rat:add(Floor,Prec)) >= X)
+            end).
+floor_3() ->
     ?FORALL(R={_,M} , rat(),
-            rat:round(R,{1,M}) =:= R).
+            rat:floor(R,{1,M}) =:= R).
+floor_4() ->
+    ?FORALL(R , real(),
+            ?IMPLIES( R >= 0,
+                      rat:to_int(rat:floor(R)) =:= erlang:trunc(R))).
 
 eqc_test_() ->
     [ { atom_to_list(F),
         {timeout, 20,
          ?_assert(
             eqc:quickcheck(
-              eqc:numtests(2000,
+              eqc:numtests(6000,
                            ?MODULE:F())))}} 
       || F <- [
                gcd_1,gcd_2,gcd_3,lcm_1,
@@ -150,5 +164,5 @@ eqc_test_() ->
                add_mult_1,
                ge_1, ge_2,
                is_rational_1,
-               round_1, round_2
+               floor_1, floor_2, floor_3, floor_4
               ]].
