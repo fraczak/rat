@@ -7,7 +7,7 @@ non_zero_nat() ->
     ?SUCHTHAT(N, nat(), N > 0).
 
 rat() ->
-    ?SUCHTHAT({L,M}, {int(),non_zero_nat()}, rat:is_rational({L,M})).
+    ?SUCHTHAT({L,M}, {largeint(),non_zero_nat()}, rat:is_rational({L,M})).
 
 pos_rat() ->
     ?SUCHTHAT({L,M}, {non_zero_nat(),non_zero_nat()}, rat:is_rational({L,M})).
@@ -38,13 +38,33 @@ lcm_1() ->
              end).
 
 rat_1() ->
-    ?FORALL( {X,Y}, {int(),non_zero_nat()},
+    ?FORALL( {X,Y}, {largeint(),non_zero_nat()},
              begin
                  rat:is_rational(rat:rat(X,Y))
              end).
 rat_2() ->
-    ?FORALL( X, int(),
+    ?FORALL( X, largeint(),
              rat:to_int(rat:rat(X)) =:= X).
+
+rat_3() ->
+    ?FORALL( X, real(),
+             begin
+                 %% D  = (1.0 / (1 bsl 52)),
+                 %% XX = rat:to_float(rat:rat(X)),
+                 %% io:format("~p~n",[{X,XX,D}]),
+                 %% io:format("~p~n",[{<<X/float>>,<<XX/float>>,D}]),
+                 %% case (X > 0.0) of
+                 %%     true ->
+                 %%         (X * (1.0 - D) =< XX) 
+                 %%             and
+                 %%               (XX =< X * (1.0 + D));
+                 %%     _ ->
+                 %%         (X * (1.0 - D) >= XX) 
+                 %%             and
+                 %%               (XX >= X * (1.0 + D))
+                 %% end,
+                 X == rat:to_float(rat:rat(X))
+             end).
 
 minus_1() ->
     ?FORALL( R, rat(),
@@ -81,11 +101,8 @@ mult_2() ->
                      rat:mult(X,rat:mult(Y,Z))
              end).
 mult_3() ->
-    ?FORALL( X, rat(),
-             ?IMPLIES(rat:rat(X) /= {0,1},
-             begin
-                 rat:mult(X,rat:inverse(X)) =:= rat:rat(1,1)
-             end)).
+    ?FORALL( X, non_zero_rat(),
+             rat:mult(X,rat:inverse(X)) =:= rat:rat(1,1)).
 
 add_mult_1() ->
     ?FORALL( {X,Y,Z}, {rat(),rat(),rat()},
@@ -101,9 +118,17 @@ ge_1() ->
            ).
 ge_2() ->
     ?FORALL( {X,Y,Z}, {rat(),rat(),rat()},
-             ?IMPLIES( rat:ge(X,Y) ,
-                       ?IMPLIES( rat:ge(Y,Z),
-                                 rat:ge(X,Z) ))).
+             (not rat:ge(X,Y))
+             or
+               (not rat:ge(Y,Z))
+             or
+             (rat:ge(X,Z))).
+ge_3() ->
+    ?FORALL( {X,Y}, {real(),real()},
+             ((not (X >= Y)) and (not rat:ge(X,Y)))
+              or
+             ((X >= Y) and (rat:ge(X,Y)))).
+
 is_rational_1() ->
     ?FORALL({L,M} , rat(),
             ?IMPLIES( L > 0,
@@ -144,7 +169,7 @@ floor_3() ->
             rat:floor(R,{1,M}) =:= R).
 floor_4() ->
     ?FORALL(R , real(),
-            ?IMPLIES( R >= 0,
+            ?IMPLIES( R > 0,
                       rat:to_int(rat:floor(R)) =:= erlang:trunc(R))).
 
 eqc_test_() ->
@@ -152,17 +177,17 @@ eqc_test_() ->
         {timeout, 20,
          ?_assert(
             eqc:quickcheck(
-              eqc:numtests(6000,
+              eqc:numtests(10000,
                            ?MODULE:F())))}} 
       || F <- [
                gcd_1,gcd_2,gcd_3,lcm_1,
-               rat_1,rat_2,
+               rat_1,rat_2,rat_3,
                minus_1,minus_2,
                add_1,add_2,
                inverse_1, inverse_2,
                mult_1,mult_2,mult_3,
                add_mult_1,
-               ge_1, ge_2,
+               ge_1, ge_2,ge_3,
                is_rational_1,
                floor_1, floor_2, floor_3, floor_4
               ]].

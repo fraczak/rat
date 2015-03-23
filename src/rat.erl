@@ -12,8 +12,6 @@
 %% A rational number is a pair {L,M}, where L is an integer, and
 %% M is a non zero natural number (positive integer).
 
-%% support for float() is weak/not good. DON'T USE IT!
-
 -export_type([as_rat/0,rat/0,pos_rat/0,non_zero_rat/0]).
 %% API
 -export(
@@ -69,10 +67,18 @@ rat({L,M}) when L < 0, M =/= 0 ->
   {-Lr,Mr};
 rat(I) when is_integer(I) ->
     rat(I,1);
-%% TODO: extract exact value from the inner float() representation!!!
 rat(F) when is_float(F) ->
-    Prec = 1000000000000,
-    rat(erlang:round(F*Prec),Prec).
+    case <<F/float>> of
+        <<_:1,0:63>> -> rat(0);
+        <<Sign:1, Exp:11, Mant:52/bitstring>> ->
+            <<M:56,_:1>> = <<1:1,Mant:52/bitstring,0:4>>,
+            E = Exp - 1023 - 54,
+            S = 1 - 2 * Sign,
+            case (E >= 0) of
+                true -> rat(S * M  bsl E);
+                _ -> rat(S * M, 2 bsl -E)
+            end
+    end.
 
 -spec add(X::as_rat(), Y::as_rat()) -> rat().
 add({L1,M1},{L2,M2}) ->
@@ -126,8 +132,6 @@ is_rational(_) ->
 -spec to_float(X::rat()) -> float().
 to_float({L,M}) ->
     L / M.
-%to_float(X) ->
-%    to_float(rat(X)).
 
 -spec to_int(X::rat()) -> integer().
 to_int({L,M}) ->
