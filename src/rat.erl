@@ -118,7 +118,7 @@ ge({L1,M1},{L2,M2}) ->
 ge(X,Y) ->
     ge(rat(X),rat(Y)).
 
--spec is_rational(any()) -> rat().
+-spec is_rational(any()) -> boolean().
 is_rational(X={L,M}) when is_integer(L), is_integer(M), M > 0 ->
     X =:= rat(X);
 is_rational(_) ->
